@@ -503,7 +503,8 @@
 
     // Estado local
     let selectedAlarmKey = null; // clave Firebase de la alarma seleccionada
-let despertadorMode = false; // estado del modo despertador
+    let currentAlarmKey = null;  // clave Firebase de la alarma actualmente mostrada en index.html
+    let despertadorMode = false; // estado del modo despertador
 
     // Actualizar estado de conexión
     const statusRef = db.ref('chile-robot/status');
@@ -561,19 +562,24 @@ let despertadorMode = false; // estado del modo despertador
         };
         // Push a nueva alarma bajo /chile-robot/alarms
         db.ref('chile-robot/alarms').push(alarmData)
-            .then(() => {
-                // Feedback visual opcional
-                saveBtn.textContent = 'Guardado!';
-                setTimeout(() => { saveBtn.textContent = 'Guardar Alarma'; }, 1500);
-                // Limpiar selección
-                selectedAlarmKey = null;
-                updateDeleteButtonVisibility();
-                // Resetear formulario opcional
-                // alarmTimeInput.value = '';
-                // ttsMessageInput.value = '';
-                // remindersInput.value = '';
-                // spotifyLinkInput.value = '';
-                // alexaCommandInput.value = '';
+            .then((ref) => {
+                // También establecer como alarma actual para index.html
+                const newKey = ref.key;
+                db.ref('chile-robot/alarm').set(alarmData)
+                    .then(() => {
+                        currentAlarmKey = newKey;
+                        // Feedback visual opcional
+                        saveBtn.textContent = 'Guardado!';
+                        setTimeout(() => { saveBtn.textContent = 'Guardar Alarma'; }, 1500);
+                        // Limpiar selección
+                        selectedAlarmKey = null;
+                        updateDeleteButtonVisibility();
+                        // Resetear formulario opcional (comentado)
+                    })
+                    .catch(err => {
+                        console.error('Error al establecer alarma actual:', err);
+                        alert('Error al guardar la alarma actual.');
+                    });
             })
             .catch(err => {
                 console.error('Error al guardar alarma:', err);
@@ -732,6 +738,14 @@ let despertadorMode = false; // estado del modo despertador
                 document.querySelectorAll('.alarm-item.selected').forEach(el => el.classList.remove('selected'));
                 div.classList.add('selected');
                 selectedAlarmKey = key;
+                // También establecer como alarma actual para index.html
+                db.ref('chile-robot/alarm').set(alarm)
+                    .then(() => {
+                        currentAlarmKey = key;
+                    })
+                    .catch(err => {
+                        console.error('Error al establecer alarma actual:', err);
+                    });
                 updateDeleteButtonVisibility();
             });
 
@@ -740,10 +754,19 @@ let despertadorMode = false; // estado del modo despertador
             toggleBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const nuevoEstado = !alarm.active;
+                // Actualizar estado en la lista
                 db.ref(`chile-robot/alarms/${key}/active`).set(nuevoEstado);
                 // Actualizar UI inmediatamente
                 toggleBtn.textContent = nuevoEstado ? 'Activa' : 'Inactiva';
                 toggleBtn.classList.toggle('active', nuevoEstado);
+                // Actualizar alarma central si es la actualmente seleccionada
+                if (key === currentAlarmKey) {
+                    const updatedAlarm = { ...alarm, active: nuevoEstado };
+                    db.ref('chile-robot/alarm').set(updatedAlarm)
+                        .catch(err => {
+                            console.error('Error al actualizar alarma central:', err);
+                        });
+                }
             });
 
             // Botón eliminar
@@ -751,7 +774,17 @@ let despertadorMode = false; // estado del modo despertador
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (confirm('¿Eliminar esta alarma?')) {
-                    db.ref(`chile-robot/alarms/${key}`).remove();
+                    db.ref(`chile-robot/alarms/${key}`).remove()
+                        .then(() => {
+                            // Si era la alarma actual, limpiarla
+                            if (key === currentAlarmKey) {
+                                db.ref('chile-robot/alarm').set(null);
+                                currentAlarmKey = null;
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error al eliminar alarma:', err);
+                        });
                 }
             });
 
