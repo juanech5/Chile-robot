@@ -355,11 +355,11 @@
         }
         .refresh-btn:hover { color: #fff; }
 
-        /* Calendario – adjustments for 1920x1080 full‑screen */
+        /* Calendario – 90% width, centered */
         .calendar-container {
-            width: 80%;               /* occupy 80% of screen width */
-            max-width: 1200px;        /* allow larger on big screens */
-            margin: 0 auto;
+            width: 90%;               /* occupy 90% of screen width */
+            max-width: none;          /* allow full width up to 90% */
+            margin: 0 auto;           /* center horizontally */
         }
         .calendar-header {
             display: flex;
@@ -1231,9 +1231,9 @@
     async function loadYouTubeVideo() {
         await ytApiLoadedPromise;
         ytPlayer = new YT.Player('yt-player', {
-            height: '0',
-            width: '0',
-            videoId: 'cf4_X_II_Xc',   // ID extraído de la URL
+            height: '1',
+            width: '1',
+            videoId: 'cf4_X_II_Xc',
             playerVars: {
                 autoplay: 1,
                 controls: 0,
@@ -1241,13 +1241,21 @@
                 modestbranding: 1,
                 iv_load_policy: 3,
                 loop: 1,
-                playlist: 'cf4_X_II_Xc' // necesario para loop
+                playlist: 'cf4_X_II_Xc'
             },
             events: {
                 onReady: (event) => {
-                    // Volumen inicial desde Firebase (se actualizará después)
+                    // Set volume from stored value
                     if (focusVolume !== null) {
                         event.target.setVolume(focusVolume);
+                    }
+                    // Attempt to play video
+                    event.target.playVideo();
+                },
+                onStateChange: (event) => {
+                    // If video ends (looped via playlist) ensure playing
+                    if (event.data === YT.PlayerState.ENDED) {
+                        event.target.playVideo();
                     }
                 }
             }
