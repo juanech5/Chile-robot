@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Despertador</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+            color: #fff;
+        }
+
+        /* ── RELOJ ── */
+        .clock-case {
+            width: 360px; height: 360px;
+            border: 6px solid #222;
+            display: flex; justify-content: center; align-items: center;
+            background: #000;
+            position: relative;
+        }
+        .clock-face { width: 310px; height: 310px; position: relative; }
+        .marks-layer, .hands-layer { position: absolute; width: 100%; height: 100%; top: 0; left: 0; }
+
+        .mark {
+            position: absolute; background: #fff;
+            left: 50%; top: 50%;
+            transform-origin: center center;
+            border-radius: 2px;
+        }
+        .mark.standard { width: 8px; height: 24px; }
+        .mark.main { width: 14px; height: 32px; }
+
+        .center-axis {
+            position: absolute; width: 16px; height: 16px;
+            background: #000; border: 4px solid #fff;
+            border-radius: 50%; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); z-index: 10;
+        }
+
+        .hand {
+            position: absolute; bottom: 50%; left: 50%;
+            transform-origin: bottom center;
+            transform: translateX(-50%) rotate(0deg);
+        }
+        .hour-hand { width: 10px; height: 75px; background: #fff; border-radius: 3px 3px 1px 1px; }
+        .minute-hand { width: 7px; height: 115px; background: #fff; border-radius: 2px 2px 1px 1px; }
+        .second-hand { width: 2px; height: 125px; background: #ff3b30; }
+
+        .status-dot {
+            position: absolute; bottom: 20px; right: 20px;
+            width: 8px; height: 8px; background: #333;
+            border-radius: 50%; transition: background-color .3s;
+        }
+
+        .alarm-info {
+            position: absolute; top: 20px;
+            color: #666; font-size: .85rem;
+            letter-spacing: .5px; text-align: center;
+        }
+
+        /* ── MODAL BASE ── */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,.9);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 100;
+            opacity: 0; pointer-events: none;
+            transition: opacity .3s;
+            overflow-y: auto;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .alarm-menu {
+            background: #111; border: 2px solid #333;
+            padding: 30px; border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,.5);
+            width: 340px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .alarm-menu h2 {
+            margin-bottom: 20px; font-size: 1.2rem;
+            font-weight: 400; letter-spacing: 1px;
+        }
+        .alarm-menu input[type="time"] {
+            background: #222; border: 1px solid #444;
+            color: #fff; font-size: 1.8rem;
+            padding: 10px; border-radius: 6px;
+            text-align: center; width: 80%;
+            margin-bottom: 15px; outline: none;
+        }
+
+        .action-btn {
+            background: #fff; color: #000;
+            border: none; padding: 12px 24px;
+            font-size: .9rem; font-weight: 600;
+            border-radius: 6px; cursor: pointer;
+            width: 90%; transition: background .2s;
+        }
+        .action-btn:hover { background: #ccc; }
+
+        .btn-danger {
+            background: #ff3b30 !important; color: #fff !important;
+            margin-top: 10px; display: none;
+        }
+        .btn-danger:hover { background: #cc2f26 !important; }
+
+        /* ── TOGGLE DESPERTADOR ── */
+        .toggle-row {
+            display: flex; align-items: center; justify-content: center;
+            gap: 10px; margin: 15px 0;
+        }
+        .toggle-row label { color: #aaa; font-size: .9rem; cursor: pointer; }
+
+        .toggle-switch {
+            position: relative; width: 44px; height: 24px;
+            background: #333; border-radius: 12px;
+            cursor: pointer; transition: background .2s;
+        }
+        .toggle-switch.on { background: #ff3b30; }
+        .toggle-switch .toggle-knob {
+            position: absolute; top: 2px; left: 2px;
+            width: 20px; height: 20px;
+            background: #fff; border-radius: 50%;
+            transition: left .2s;
+        }
+        .toggle-switch.on .toggle-knob { left: 22px; }
+
+        /* ── PANEL DESPERTADOR EXPANDIDO ── */
+        .despertador-panel {
+            max-height: 0; overflow: hidden;
+            transition: max-height .4s ease, opacity .3s;
+            opacity: 0;
+        }
+        .despertador-panel.open {
+            max-height: 800px;
+            opacity: 1;
+        }
+
+        .section-label {
+            color: #888; font-size: .75rem;
+            text-transform: uppercase; letter-spacing: 1px;
+            margin: 15px 0 8px; text-align: left;
+        }
+
+        .custom-file-upload {
+            display: inline-block; padding: 8px 16px;
+            background: #222; border: 1px dashed #555;
+            color: #aaa; border-radius: 6px; cursor: pointer;
+            font-size: .8rem; width: 100%;
+            text-overflow: ellipsis; overflow: hidden; white-space: nowrap;
+        }
+        .custom-file-upload:hover { border-color: #888; color: #fff; }
+
+        .text-input {
+            background: #222; border: 1px solid #444;
+            color: #fff; font-size: .85rem;
+            padding: 10px; border-radius: 6px;
+            width: 100%; outline: none;
+            resize: vertical; min-height: 40px;
+        }
+        .text-input::placeholder { color: #555; }
+        .text-input:focus { border-color: #666; }
+
+        textarea.text-input { min-height: 70px; }
+
+        .music-input-row {
+            display: flex; gap: 8px; align-items: center;
+        }
+        .music-input-row input {
+            flex: 1;
+        }
+
+        .divider {
+            border: none; border-top: 1px solid #222;
+            margin: 15px 0;
+        }
+
+        input[type="file"] { display: none; }
+
+        /* ── PANTALLA DE ALARMA SONANDO ── */
+        .alarm-screen {
+            position: fixed; inset: 0;
+            background: #000;
+            z-index: 200;
+            display: none;
+            overflow: hidden;
+        }
+        .alarm-screen.active {
+            display: flex;
+        }
+
+        .alarm-screen .left-panel {
+            flex: 1;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 40px;
+        }
+
+        .alarm-screen .right-panel {
+            width: 40%;
+            background: #0a0a0a;
+            border-left: 1px solid #222;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            padding: 50px 40px;
+            overflow-y: auto;
+        }
+        .alarm-screen .right-panel.visible {
+            display: flex;
+        }
+
+        .alarm-screen .time-display {
+            font-size: 6rem;
+            font-weight: 200;
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+        }
+        .alarm-screen .date-display {
+            font-size: 1.3rem;
+            color: #888;
+            margin-bottom: 30px;
+        }
+        .alarm-screen .weather-display {
+            font-size: 1.6rem;
+            margin-bottom: 30px;
+            color: #aaa;
+        }
+        .alarm-screen .weather-display .temp {
+            font-size: 3.5rem;
+            font-weight: 300;
+            color: #fff;
+        }
+
+        .alarm-screen .right-panel h3 {
+            font-size: .9rem;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+        .alarm-screen .right-panel .reminder-text {
+            font-size: 2rem;
+            line-height: 1.7;
+            color: #fff;
+            white-space: pre-wrap;
+            font-weight: 300;
+        }
+
+        .alarm-screen .stop-alarm-btn {
+            background: #ff3b30;
+            color: #fff;
+            border: none;
+            padding: 18px 60px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 30px;
+            transition: background .2s, transform .1s;
+        }
+        .alarm-screen .stop-alarm-btn:hover { background: #cc2f26; }
+        .alarm-screen .stop-alarm-btn:active { transform: scale(.97); }
+
+        .tts-status {
+            color: #555;
+            font-size: .8rem;
+            margin-top: 10px;
+        }
+
+        /* ── ANIMACIÓN PULSO ── */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .4; }
+        }
+        .pulsing { animation: pulse 1.5s infinite; }
+    </style>
+</head>
+<body>
+
+<div class="alarm-info" id="alarm-display">[ Presiona ESPACIO para configurar ]</div>
+
+<div class="clock-case">
+    <div class="clock-face">
+        <div class="marks-layer" id="marks"></div>
+        <div class="hands-layer">
+            <div class="hand hour-hand" id="hour"></div>
+            <div class="hand minute-hand" id="minute"></div>
+            <div class="hand second-hand" id="second"></div>
+        </div>
+        <div class="center-axis"></div>
+    </div>
+</div>
+
+<audio id="alarm-sound"></audio>
+<div class="status-dot" id="status"></div>
+
+<!-- MODAL CONFIGURACIÓN -->
+<div class="modal-overlay" id="modal">
+    <div class="alarm-menu">
+        <h2 id="menu-title">CONFIGURAR ALARMA</h2>
+
+        <input type="time" id="alarm-time">
+
+        <!-- Toggle Despertador -->
+        <div class="toggle-row">
+            <label for="despertador-toggle">Modo Despertador</label>
+            <div class="toggle-switch" id="despertador-toggle">
+                <div class="toggle-knob"></div>
+            </div>
+        </div>
+
+        <!-- Panel expandible -->
+        <div class="despertador-panel" id="despertador-panel">
+            <hr class="divider">
+
+            <div class="section-label">Sonido de alarma</div>
+            <label for="audio-file" class="custom-file-upload" id="file-label">
+                🎵 Seleccionar tono de alarma...
+            </label>
+            <input type="file" id="audio-file" accept="audio/*">
+
+            <div class="section-label">¿Qué quieres que diga?</div>
+            <input type="text" class="text-input" id="tts-message"
+                   placeholder="Ej: ¡Arriba campeón, hoy va a ser un gran día!">
+
+            <div class="section-label">¿Qué quieres que salga en pantalla?</div>
+            <textarea class="text-input" id="reminders-input"
+                      placeholder="Ej:&#10;- Entregar informe a las 10&#10;- Llamar al doctor&#10;- Comprar pan"></textarea>
+
+            <hr class="divider">
+
+            <div class="section-label">Música después de la alarma</div>
+            <div class="music-input-row">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;flex-shrink:0;fill:#1db954;">
+                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                </svg>
+                <input type="text" class="text-input" id="music-link"
+                       placeholder="Link de Spotify (canción, playlist, álbum)...">
+            </div>
+
+            <div class="section-label" style="margin-top:12px;">Pedir a Alexa (opcional)</div>
+            <input type="text" class="text-input" id="alexa-command"
+                   placeholder="Ej: reproduce mi playlist de Spotify">
+            <p style="color:#444; font-size:.65rem; margin-top:4px; text-align:left;">
+                El TTS dirá "Alexa, [tu comando]" en voz alta para que tu Alexa lo escuche
+            </p>
+
+            <hr class="divider">
+            <p style="color:#555; font-size:.7rem; margin-bottom:10px;">
+                Secuencia: sonido ×2 → clima + fecha + mensaje por voz → pendientes en pantalla → Alexa / Spotify
+            </p>
+        </div>
+
+        <button id="save-btn" class="action-btn">Guardar Alarma</button>
+        <button id="stop-btn" class="action-btn btn-danger">APAGAR ALARMA</button>
+    </div>
+</div>
+
+<!-- PANTALLA ALARMA SONANDO -->
+<div class="alarm-screen" id="alarm-screen">
+    <div class="left-panel">
+        <div class="time-display pulsing" id="screen-time">07:00</div>
+        <div class="date-display" id="screen-date"></div>
+        <div class="weather-display" id="screen-weather"></div>
+        <button class="stop-alarm-btn" id="screen-stop-btn">Apagar Alarma</button>
+        <div class="tts-status" id="tts-status"></div>
+    </div>
+    <div class="right-panel" id="screen-reminders">
+        <h3>Pendientes para hoy</h3>
+        <div class="reminder-text" id="screen-reminders-text"></div>
+    </div>
+</div>
+
+<script>
+    // ── MARCAS DEL RELOJ ──
+    const marksContainer = document.getElementById('marks');
+    for (let i = 0; i < 12; i++) {
+        const angle = i * 30;
+        const mark = document.createElement('div');
+        mark.classList.add('mark', i % 3 === 0 ? 'main' : 'standard');
+        mark.style.transform = `translate(-50%, -50%) rotate(${angle}deg) translateY(-130px)`;
+        marksContainer.appendChild(mark);
+    }
+
+    // ── RELOJ ──
+    const hourHand = document.getElementById('hour');
+    const minuteHand = document.getElementById('minute');
+    const secondHand = document.getElementById('second');
+    const alarmDisplay = document.getElementById('alarm-display');
+
+    let targetAlarmTime = null;
+    let isAlarmRinging = false;
+    let despertadorMode = false;
+
+    function tick() {
+        const now = new Date();
+        const ms = now.getMilliseconds();
+        const s = now.getSeconds();
+        const m = now.getMinutes();
+        const h = now.getHours();
+
+        secondHand.style.transform = `translateX(-50%) rotate(${s * 6 + ms * 0.006}deg)`;
+        minuteHand.style.transform = `translateX(-50%) rotate(${m * 6 + s * 0.1}deg)`;
+        hourHand.style.transform = `translateX(-50%) rotate(${(h % 12) * 30 + m * 0.5}deg)`;
+
+        if (targetAlarmTime && s === 0 && !isAlarmRinging) {
+            const currentStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+            if (currentStr === targetAlarmTime) triggerAlarm();
+        }
+    }
+    tick();
+    setInterval(tick, 50);
+
+    // ── TOGGLE DESPERTADOR ──
+    const toggleEl = document.getElementById('despertador-toggle');
+    const panel = document.getElementById('despertador-panel');
+
+    toggleEl.addEventListener('click', () => {
+        despertadorMode = !despertadorMode;
+        toggleEl.classList.toggle('on', despertadorMode);
+        panel.classList.toggle('open', despertadorMode);
+    });
+
+    // ── AUDIO PERSONALIZADO ──
+    const audioInput = document.getElementById('audio-file');
+    const audioLabel = document.getElementById('file-label');
+    const alarmSound = document.getElementById('alarm-sound');
+
+    audioInput.addEventListener('change', function () {
+        const file = this.files[0];
+        if (file) {
+            alarmSound.src = URL.createObjectURL(file);
+            audioLabel.innerText = `✔️ ${file.name}`;
+        }
+    });
+
+    // ── CLIMA (wttr.in) ──
+    async function fetchWeather() {
+        try {
+            const res = await fetch('https://wttr.in/Las+Condes?format=j1');
+            const data = await res.json();
+            const current = data.current_condition[0];
+            const temp = current.temp_C;
+            const desc = current.lang_es?.[0]?.value || current.weatherDesc[0].value;
+            const feelsLike = current.FeelsLikeC;
+            return { temp, desc, feelsLike };
+        } catch {
+            return null;
+        }
+    }
+
+    // ── TEXT TO SPEECH ──
+    function speak(text) {
+        return new Promise((resolve) => {
+            if (!text || !window.speechSynthesis) { resolve(); return; }
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'es-ES';
+            utter.rate = 0.95;
+            utter.onend = resolve;
+            utter.onerror = resolve;
+            speechSynthesis.speak(utter);
+        });
+    }
+
+    // ── FORMATEAR FECHA ──
+    function getFormattedDate() {
+        const now = new Date();
+        const days = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        return `${days[now.getDay()]} ${now.getDate()} de ${months[now.getMonth()]}`;
+    }
+
+    function getFormattedTime(date) {
+        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
+
+    // ── REPRODUCIR SONIDO 2 VECES COMPLETAS ──
+    function playAlarmSound() {
+        return new Promise((resolve) => {
+            if (!alarmSound.src) { resolve(); return; }
+            let playCount = 0;
+            function onEnded() {
+                playCount++;
+                if (playCount < 2) {
+                    alarmSound.currentTime = 0;
+                    alarmSound.play().catch(() => {});
+                } else {
+                    alarmSound.removeEventListener('ended', onEnded);
+                    resolve();
+                }
+            }
+            alarmSound.addEventListener('ended', onEnded);
+            alarmSound.currentTime = 0;
+            alarmSound.play().catch(() => resolve());
+        });
+    }
+
+    // ── MÚSICA (YouTube / Alexa) ──
+    function openMusic() {
+        const link = document.getElementById('music-link').value.trim();
+        if (link) window.open(link, '_blank');
+    }
+
+    async function triggerAlexa() {
+        const cmd = document.getElementById('alexa-command').value.trim();
+        if (!cmd) return;
+        await speak(`Alexa, ${cmd}`);
+    }
+
+    // ── TRIGGER ALARMA ──
+    async function triggerAlarm() {
+        isAlarmRinging = true;
+
+        if (despertadorMode) {
+            await triggerDespertador();
+        } else {
+            if (alarmSound.src) {
+                alarmSound.play().catch(() => {});
+            }
+            openConfigMenu();
+            document.getElementById('menu-title').innerText = "¡ALARMA SONANDO!";
+            document.getElementById('stop-btn').style.display = 'block';
+        }
+    }
+
+    async function triggerDespertador() {
+        const screen = document.getElementById('alarm-screen');
+        const screenTime = document.getElementById('screen-time');
+        const screenDate = document.getElementById('screen-date');
+        const screenWeather = document.getElementById('screen-weather');
+        const screenReminders = document.getElementById('screen-reminders');
+        const screenRemindersText = document.getElementById('screen-reminders-text');
+        const ttsStatus = document.getElementById('tts-status');
+
+        const now = new Date();
+        screenTime.textContent = getFormattedTime(now);
+        screenDate.textContent = getFormattedDate();
+        screen.classList.add('active');
+
+        // Actualizar hora en pantalla cada segundo
+        const screenTickInterval = setInterval(() => {
+            screenTime.textContent = getFormattedTime(new Date());
+        }, 1000);
+        screen.dataset.tickInterval = screenTickInterval;
+
+        // 1) Sonido de alarma: suena 2 veces completas
+        ttsStatus.textContent = 'Sonando alarma...';
+        await playAlarmSound();
+
+        // 2) Obtener clima mientras empieza el TTS
+        ttsStatus.textContent = 'Obteniendo clima...';
+        const weather = await fetchWeather();
+
+        if (weather) {
+            screenWeather.innerHTML = `
+                <div class="temp">${weather.temp}°C</div>
+                <div>${weather.desc} · Sensación ${weather.feelsLike}°C</div>
+            `;
+        } else {
+            screenWeather.innerHTML = '<div style="color:#555">No se pudo obtener el clima</div>';
+        }
+
+        // 3) TTS: fecha + clima + mensaje personalizado
+        ttsStatus.textContent = 'Hablando...';
+
+        const dateStr = getFormattedDate();
+        let ttsText = `Buenos días. Hoy es ${dateStr}.`;
+
+        if (weather) {
+            ttsText += ` En Las Condes están a ${weather.temp} grados, ${weather.desc}, con sensación térmica de ${weather.feelsLike} grados.`;
+        }
+
+        const userMessage = document.getElementById('tts-message').value.trim();
+        if (userMessage) {
+            ttsText += ` ${userMessage}`;
+        }
+
+        await speak(ttsText);
+
+        // 4) Mostrar recordatorios grandes al lado derecho (sin TTS)
+        const reminders = document.getElementById('reminders-input').value.trim();
+        if (reminders) {
+            screenRemindersText.textContent = reminders;
+            screenReminders.classList.add('visible');
+        }
+
+        ttsStatus.textContent = '';
+
+        // 5) Alexa y/o YouTube Music
+        await triggerAlexa();
+        openMusic();
+    }
+
+    // ── APAGAR ALARMA ──
+    function stopAlarm() {
+        isAlarmRinging = false;
+        alarmSound.pause();
+        alarmSound.currentTime = 0;
+        speechSynthesis.cancel();
+
+        targetAlarmTime = null;
+        alarmDisplay.innerText = "[ Presiona ESPACIO para configurar ]";
+        document.getElementById('menu-title').innerText = "CONFIGURAR ALARMA";
+        document.getElementById('stop-btn').style.display = 'none';
+
+        // Cerrar pantalla despertador
+        const screen = document.getElementById('alarm-screen');
+        const interval = screen.dataset.tickInterval;
+        if (interval) clearInterval(Number(interval));
+        screen.classList.remove('active');
+        document.getElementById('screen-reminders').classList.remove('visible');
+
+        closeConfigMenu();
+    }
+
+    // ── MODAL ──
+    const modal = document.getElementById('modal');
+    const alarmInput = document.getElementById('alarm-time');
+
+    function openConfigMenu() {
+        modal.classList.add('active');
+        alarmInput.focus();
+    }
+    function closeConfigMenu() {
+        if (!isAlarmRinging) modal.classList.remove('active');
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && !isAlarmRinging) {
+            const tag = document.activeElement?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+            e.preventDefault();
+            modal.classList.contains('active') ? closeConfigMenu() : openConfigMenu();
+        }
+    });
+
+    document.getElementById('save-btn').addEventListener('click', () => {
+        if (alarmInput.value) {
+            targetAlarmTime = alarmInput.value;
+            const mode = despertadorMode ? ' (Despertador)' : '';
+            alarmDisplay.innerText = `Alarma: ${targetAlarmTime}${mode} — Espacio para editar`;
+            closeConfigMenu();
+        }
+    });
+
+    document.getElementById('stop-btn').addEventListener('click', stopAlarm);
+    document.getElementById('screen-stop-btn').addEventListener('click', stopAlarm);
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeConfigMenu();
+    });
+
+    // ── WAKE LOCK ──
+    let wakeLock = null;
+    const statusDot = document.getElementById('status');
+
+    async function requestWakeLock() {
+        try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            statusDot.style.background = '#4cd964';
+            wakeLock.addEventListener('release', () => { wakeLock = null; });
+        } catch {
+            statusDot.style.background = '#333';
+        }
+    }
+
+    window.addEventListener('focus', () => { if (!wakeLock) requestWakeLock(); });
+    document.addEventListener('click', () => { if (!wakeLock) requestWakeLock(); });
+    document.addEventListener('visibilitychange', () => {
+        if (!wakeLock && document.visibilityState === 'visible') requestWakeLock();
+    });
+    requestWakeLock();
+</script>
+</body>
+</html>
