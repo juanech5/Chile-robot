@@ -557,6 +557,9 @@
     </div>
 </div>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
     // ── MARCAS DEL RELOJ ──
     const marksContainer = document.getElementById('marks');
@@ -609,7 +612,6 @@
 
     // ── AUDIO PERSONALIZADO (AHORA SELECT) ──
     const toneSelect = document.getElementById('tone-select');
-    const audioLabel = document.getElementById('file-label'); // Mantener por compatibilidad, pero no usado
     const alarmSound = document.getElementById('alarm-sound');
 
     // Actualizar el src del audio cuando cambie la selección
@@ -1066,7 +1068,7 @@
             monday.setDate(now.getDate() + mondayOffset);
             monday.setHours(0, 0, 0, 0);
 
-            // Calcular domingo de la semana siguiente (14 días desde el lunes)
+            // Calcular domingo de la semana siguiente (14 dias desde el lunes)
             const endSunday = new Date(monday);
             endSunday.setDate(monday.getDate() + 13);
             endSunday.setHours(23, 59, 59, 999);
@@ -1076,34 +1078,29 @@
 
             const url = `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_ID}/events?key=${CALENDAR_API_KEY}&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&timeZone=America/Santiago`;
 
-            const resp = await fetch(url);
-            if (!resp.ok) {
-                if (resp.status === 404) {
-                    calendarContent.innerHTML = `
-                        <div style="text-align: center; color: #ff3b30; padding: 40px;">
-                            Calendario no accesible. Verifica que tu Google Calendar sea público.<br>
-                            <small>Para hacerlo público: Configuración de Google Calendar → Calendario → Compartir públicamente</small>
-                        </div>
-                    `;
+            const response = await fetch(url);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    calendarContent.innerHTML = `<div style="text-align: center; color: #ff3b30; padding: 40px;">Calendario no accesible. Verifica que tu Google Calendar sea público.</div>`;
                     return;
                 }
-                throw new Error(`Calendar API error: ${resp.status}`);
+                throw new Error(`Calendar API error: ${response.status}`);
             }
-
-            const data = await resp.json();
+            const data = await response.json();
             const events = data.items || [];
 
-            // Crear mapa de eventos por fecha
+            // Crear un mapa: fecha (YYYY-MM-DD) -> array de eventos
             const eventMap = {};
             events.forEach(event => {
+                // Fecha del evento
                 const dateStr = event.start.dateTime
                     ? event.start.dateTime.split('T')[0]
-                    : event.start.date; // evento de todo el día
+                    : event.start.date; // evento de todo el dia
                 if (!eventMap[dateStr]) eventMap[dateStr] = [];
                 eventMap[dateStr].push(event);
             });
 
-            // Generar 14 días a partir del lunes
+            // Generar 14 dias a partir del lunes
             const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
             const daysHtml = [];
 
