@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chile-Robot Remote</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background-color: #000;
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px;
+      border-bottom: 1px solid #222;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .status-text {
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+    .alarm-form {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.85rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .form-group input[type="time"],
+    .form-group input[type="text"],
+    .form-group input[type="url"],
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      background: #222;
+      border: 1px solid #444;
+      color: #fff;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+    }
+    .form-group select {
+      appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fff'><path d='M7 10l5 5 5-5z'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 16px;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: #333;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background .2s;
+      margin: 0;
+    }
+    .toggle-switch.on {
+      background: #ff3b30;
+    }
+    .toggle-switch .toggle-knob {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: #fff;
+      border-radius: 50%;
+      transition: left .2s;
+    }
+    .toggle-switch.on .toggle-knob {
+      left: 22px;
+    }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .action-btn {
+      background: #fff;
+      color: #000;
+      border: none;
+      padding: 12px 24px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+      transition: background .2s;
+      margin-top: 10px;
+    }
+    .action-btn:hover {
+      background: #ccc;
+    }
+    .btn-danger {
+      background: #ff3b30 !important;
+      color: #fff !important;
+    }
+    .btn-danger:hover {
+      background: #cc2f26 !important;
+    }
+    .tabs-container {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      display: flex;
+      border-top: 1px solid #222;
+      background: #000;
+    }
+    .tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: #666;
+      transition: color .2s;
+    }
+    .tab.active {
+      color: #ff3b30;
+    }
+    .tab .icon {
+      font-size: 1.2rem;
+      margin-bottom: 4px;
+    }
+    .preview-btn {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0;
+      transition: color .2s;
+    }
+    .preview-btn:hover {
+      color: #fff;
+    }
+    .input-with-icon {
+      position: relative;
+    }
+    .input-with-icon input {
+      padding-right: 30px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Status de conexión -->
+  <div class="status-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <div class="status-text" id="status-text">Verificando conexión...</div>
+  </div>
+
+  <!-- Formulario de alarma -->
+  <div class="alarm-form">
+    <!-- Hora de alarma -->
+    <div class="form-group">
+      <label for="alarm-time">Hora de alarma</label>
+      <input type="time" id="alarm-time">
+    </div>
+
+    <!-- Toggle Modo Despertador -->
+    <div class="form-group">
+      <div class="toggle-row">
+        <label for="despertador-toggle">Modo Despertador</label>
+        <div class="toggle-switch" id="despertador-toggle">
+          <div class="toggle-knob"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel expandible -->
+    <div class="despertador-panel" id="despertador-panel" style="display: none;">
+      <hr class="divider" style="border: none; border-top: 1px solid #222; margin: 15px 0;">
+
+      <!-- Selector de tono -->
+      <div class="form-group">
+        <label for="tone-select">Tono de alarma</label>
+        <div class="input-with-icon">
+          <select id="tone-select">
+            <option value="lesiakower-lo-fi-alarm-clock-243766.mp3">Lo-fi Alarm</option>
+            <option value="freesound_community-alarm-clock-90867.mp3">Alarm Clock Clasico</option>
+            <option value="Tono Incendio.mpeg">Tono Incendio</option>
+          </select>
+          <button class="preview-btn" id="preview-tone-btn">▶️</button>
+        </div>
+      </div>
+
+      <!-- Mensaje TTS -->
+      <div class="form-group">
+        <label for="tts-message">¿Qué quieres que diga?</label>
+        <input type="text" id="tts-message" placeholder="Ej: ¡Arriba campeón, hoy va a ser un gran día!">
+      </div>
+
+      <!-- Pendientes/Recordatorios -->
+      <div class="form-group">
+        <label for="reminders">¿Qué quieres que salga en pantalla?</label>
+        <textarea id="reminders" placeholder="Ej:
+- Entregar informe a las 10
+- Llamar al doctor
+- Comprar pan"></textarea>
+      </div>
+
+      <!-- Link de Spotify -->
+      <div class="form-group">
+        <label for="spotify-link">Link de Spotify</label>
+        <input type="url" id="spotify-link" placeholder="Link de Spotify (canción, playlist, álbum)...">
+      </div>
+
+      <!-- Comando Alexa -->
+      <div class="form-group">
+        <label for="alexa-command">Comando para Alexa</label>
+        <input type="text" id="alexa-command" placeholder="Ej: reproduce mi playlist de Spotify">
+      </div>
+
+      <hr class="divider" style="border: none; border-top: 1px solid #222; margin: 15px 0;">
+      <p style="color: #555; font-size: 0.7rem; text-align: left;">
+        Secuencia: sonido ×2 → clima + fecha + mensaje por voz → pendientes en pantalla → Alexa / Spotify
+      </p>
+    </div>
+
+    <!-- Botones -->
+    <button id="save-btn" class="action-btn">Guardar Alarma</button>
+    <button id="stop-btn" class="action-btn btn-danger">APAGAR ALARMA</button>
+  </div>
+
+  <!-- Tabs de vista -->
+  <div class="tabs-container">
+    <div class="tab active" id="tab-clock">
+      <div class="icon">⏰</div>
+      <div>Reloj</div>
+    </div>
+    <div class="tab" id="tab-finance">
+      <div class="icon">$</div>
+      <div>Finanzas</div>
+    </div>
+    <div class="tab" id="tab-calendar">
+      <div class="icon">📅</div>
+      <div>Calendario</div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script>
+    // Firebase configuration from CREDENCIALES.md
+    const firebaseConfig = {
+      apiKey: "AIzaSyAZ_6YiC9FJTwwkPPMhT7SpdOgyRW5nbsg",
+      authDomain: "juanech-sa.firebaseapp.com",
+      databaseURL: "https://juanech-sa-default-rtdb.firebaseio.com",
+      projectId: "juanech-sa",
+      storageBucket: "juanech-sa.firebasestorage.app",
+      messagingSenderId: "310883397247",
+      appId: "1:310883397247:web:be8090e93bdd43a429194a"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Elementos DOM
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const alarmTimeInput = document.getElementById('alarm-time');
+    const despertadorToggle = document.getElementById('despertador-toggle');
+    const desencPanel = document.getElementById('despertador-panel');
+    const toneSelect = document.getElementById('tone-select');
+    const previewToneBtn = document.getElementById('preview-tone-btn');
+    const ttsMessageInput = document.getElementById('tts-message');
+    const remindersInput = document.getElementById('reminders');
+    const spotifyLinkInput = document.getElementById('spotify-link');
+    const alexaCommandInput = document.getElementById('alexa-command');
+    const saveBtn = document.getElementById('save-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const tabClock = document.getElementById('tab-clock');
+    const tabFinance = document.getElementById('tab-finance');
+    const tabCalendar = document.getElementById('tab-calendar');
+
+    // Estado local
+    let despertadorMode = false;
+    let audioContext = null;
+
+    // Actualizar estado de conexión
+    const statusRef = db.ref('chile-robot/status');
+    statusRef.on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data && data.online === true) {
+        statusDot.style.background = '#4cd964'; // verde
+        statusText.textContent = `Conectado: ${data.device || 'Desconocido'}`;
+      } else {
+        statusDot.style.background = '#ff3b30'; // rojo
+        statusText.textContent = 'Sin conexion';
+      }
+    });
+
+    // Toggle modo despertador
+    despertadorToggle.addEventListener('click', () => {
+      despertadorMode = !despertadorMode;
+      despertadorToggle.classList.toggle('on', despertadorMode);
+      desencPanel.style.display = despertadorMode ? 'block' : 'none';
+    });
+
+    // Preview tone
+    previewToneBtn.addEventListener('click', () => {
+      const selectedTone = toneSelect.value;
+      if (audioContext) {
+        audioContext.close();
+      }
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      fetch(selectedTone)
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+        .then(audioBuffer => {
+          const source = audioContext.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(audioContext.destination);
+          source.start(0);
+        })
+        .catch(err => {
+          console.error('Error al reproducir tono:', err);
+          alert('No se pudo reproducir el tono. Asegúrate de que el archivo exista.');
+        });
+    });
+
+    // Guardar alarma
+    saveBtn.addEventListener('click', () => {
+      const alarmData = {
+        time: alarmTimeInput.value,
+        despertadorMode: despertadorMode,
+        tone: toneSelect.value,
+        ttsMessage: ttsMessageInput.value.trim(),
+        reminders: remindersInput.value.trim(),
+        spotifyLink: spotifyLinkInput.value.trim(),
+        alexaCommand: alexaCommandInput.value.trim(),
+        stopAlarm: false
+      };
+      db.ref('chile-robot/alarm').set(alarmData)
+        .then(() => {
+          // Feedback visual opcional
+          saveBtn.textContent = 'Guardado!';
+          setTimeout(() => { saveBtn.textContent = 'Guardar Alarma'; }, 1500);
+        })
+        .catch(err => {
+          console.error('Error al guardar alarma:', err);
+          alert('Error al guardar la alarma. Consulta la consola para detalles.');
+        });
+    });
+
+    // Apagar alarma
+    stopBtn.addEventListener('click', () => {
+      db.ref('chile-robot/alarm/stopAlarm').set(true)
+        .then(() => {
+          // feedback visual
+          stopBtn.textContent = 'Apagado!';
+          setTimeout(() => { stopBtn.textContent = 'APAGAR ALARMA'; }, 1500);
+        })
+        .catch(err => {
+          console.error('Error al apagar alarma:', err);
+          alert('Error al apagar la alarma.');
+        });
+    });
+
+    // Cambiar vista
+    function setView(view) {
+      db.ref('chile-robot/view/current').set(view)
+        .catch(err => console.error('Error al cambiar vista:', err));
+    }
+
+    tabClock.addEventListener('click', () => {
+      setView('clock');
+      setActiveTab(tabClock);
+    });
+    tabFinance.addEventListener('click', () => {
+      setView('finance');
+      setActiveTab(tabFinance);
+    });
+    tabCalendar.addEventListener('click', () => {
+      setView('calendar');
+      setActiveTab(tabCalendar);
+    });
+
+    function setActiveTab(activeTab) {
+      [tabClock, tabFinance, tabCalendar].forEach(tab => {
+        tab.classList.remove('active');
+      });
+      activeTab.classList.add('active');
+    }
+
+    // Inicializar: establecer modo despertador según estado inicial (opcional)
+    // y cargar valores actuales desde Firebase si existen
+    const alarmRef = db.ref('chile-robot/alarm');
+    alarmRef.on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        // Actualizar form con valores almacenados
+        if (data.time) alarmTimeInput.value = data.time;
+        if (data.despertadorMode !== undefined) {
+          despertadorMode = data.despertadorMode;
+          despertadorToggle.classList.toggle('on', despertadorMode);
+          desencPanel.style.display = despertadorMode ? 'block' : 'none';
+        }
+        if (data.tone) toneSelect.value = data.tone;
+        if (data.ttsMessage) ttsMessageInput.value = data.ttsMessage;
+        if (data.reminders) remindersInput.value = data.reminders;
+        if (data.spotifyLink) spotifyLinkInput.value = data.spotifyLink;
+        if (data.alexaCommand) alexaCommandInput.value = data.alexaCommand;
+      }
+    });
+
+    // Estado inicial: conectado/desconectado
+    // Firebase maneja automáticamente el estado de conexión,
+    // pero podemos añadir un listener adicional para presencia
+    const connectedRef = db.ref('.info/connected');
+    connectedRef.on('value', (snap) => {
+      if (snap.val() === true) {
+        // Estamos conectados a Firebase
+        statusDot.style.background = '#4cd964';
+        // El texto se actualizará mediante el listener de statusRef
+      } else {
+        statusDot.style.background = '#ff3b30';
+        statusText.textContent = 'Sin conexion';
+      }
+    });
+  </script>
+</body>
+</html>

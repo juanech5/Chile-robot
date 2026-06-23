@@ -285,21 +285,194 @@
             50% { opacity: .4; }
         }
         .pulsing { animation: pulse 1.5s infinite; }
+
+        /* ── VISTAS FINANZAS Y CALENDARIO ── */
+        .view {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100%;
+        }
+        .view.active {
+            display: flex;
+        }
+
+        /* Finanzas */
+        .finance-container {
+            width: 90%;
+            max-width: 500px;
+        }
+        .finance-card {
+            background: #000;
+            border: 1px solid #222;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .finance-card .label {
+            color: #888;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .finance-card .value {
+            color: #fff;
+            font-size: 3rem;
+            font-weight: 200;
+            margin: 8px 0;
+        }
+        .finance-card .change {
+            font-size: 1.2rem;
+            font-weight: 300;
+        }
+        .finance-card .change.positive { color: #4cd964; }
+        .finance-card .change.negative { color: #ff3b30; }
+        .finance-card .timestamp {
+            color: #555;
+            font-size: 0.75rem;
+            margin-top: 12px;
+        }
+        .finance-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .finance-header h2 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+        .refresh-btn {
+            background: transparent;
+            border: none;
+            color: #aaa;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color .2s;
+        }
+        .refresh-btn:hover { color: #fff; }
+
+        /* Calendario */
+        .calendar-container {
+            width: 90%;
+            max-width: 600px;
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .calendar-header h2 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+        .refresh-btn-cal {
+            background: transparent;
+            border: none;
+            color: #aaa;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color .2s;
+        }
+        .refresh-btn-cal:hover { color: #fff; }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+        .calendar-day {
+            background: #000;
+            border: 1px solid #222;
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+        }
+        .calendar-day.today {
+            border: 2px solid #ff3b30;
+        }
+        .calendar-day-number {
+            font-size: 1.5rem;
+            font-weight: 300;
+            margin-bottom: 8px;
+        }
+        .calendar-day.today .calendar-day-number {
+            color: #ff3b30;
+        }
+        .calendar-event {
+            background: #222;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .calendar-event-time {
+            color: #888;
+            font-size: 0.7rem;
+        }
+        .calendar-event-title {
+            color: #fff;
+            flex-grow: 1;
+            margin-left: 8px;
+        }
+        .calendar-day-empty {
+            color: #555;
+            font-size: 0.75rem;
+            align-self: center;
+        }
     </style>
 </head>
 <body>
 
 <div class="alarm-info" id="alarm-display">[ Presiona ESPACIO para configurar ]</div>
 
-<div class="clock-case">
-    <div class="clock-face">
-        <div class="marks-layer" id="marks"></div>
-        <div class="hands-layer">
-            <div class="hand hour-hand" id="hour"></div>
-            <div class="hand minute-hand" id="minute"></div>
-            <div class="hand second-hand" id="second"></div>
+<!-- VISTAS -->
+<div id="view-clock" class="view active">
+    <div class="clock-case">
+        <div class="clock-face">
+            <div class="marks-layer" id="marks"></div>
+            <div class="hands-layer">
+                <div class="hand hour-hand" id="hour"></div>
+                <div class="hand minute-hand" id="minute"></div>
+                <div class="hand second-hand" id="second"></div>
+            </div>
+            <div class="center-axis"></div>
         </div>
-        <div class="center-axis"></div>
+    </div>
+</div>
+
+<div id="view-finance" class="view">
+    <div class="finance-container">
+        <div class="finance-header">
+            <h2>Finanzas</h2>
+            <button class="refresh-btn" id="finance-refresh">↻</button>
+        </div>
+        <div id="finance-content">
+            <!-- Se cargará dinámicamente -->
+            <div style="text-align: center; color: #888; padding: 40px;">Cargando datos...</div>
+        </div>
+    </div>
+</div>
+
+<div id="view-calendar" class="view">
+    <div class="calendar-container">
+        <div class="calendar-header">
+            <h2>Calendario</h2>
+            <button class="refresh-btn-cal" id="calendar-refresh">↻</button>
+        </div>
+        <div id="calendar-content">
+            <!-- Se cargará dinámicamente -->
+            <div style="text-align: center; color: #888; padding: 40px;">Cargando eventos...</div>
+        </div>
     </div>
 </div>
 
@@ -326,10 +499,11 @@
             <hr class="divider">
 
             <div class="section-label">Sonido de alarma</div>
-            <label for="audio-file" class="custom-file-upload" id="file-label">
-                🎵 Seleccionar tono de alarma...
-            </label>
-            <input type="file" id="audio-file" accept="audio/*">
+            <select id="tone-select">
+                <option value="lesiakower-lo-fi-alarm-clock-243766.mp3">Lo-fi Alarm</option>
+                <option value="freesound_community-alarm-clock-90867.mp3">Alarm Clock Clasico</option>
+                <option value="Tono Incendio.mpeg">Tono Incendio</option>
+            </select>
 
             <div class="section-label">¿Qué quieres que diga?</div>
             <input type="text" class="text-input" id="tts-message"
@@ -433,18 +607,17 @@
         panel.classList.toggle('open', despertadorMode);
     });
 
-    // ── AUDIO PERSONALIZADO ──
-    const audioInput = document.getElementById('audio-file');
-    const audioLabel = document.getElementById('file-label');
+    // ── AUDIO PERSONALIZADO (AHORA SELECT) ──
+    const toneSelect = document.getElementById('tone-select');
+    const audioLabel = document.getElementById('file-label'); // Mantener por compatibilidad, pero no usado
     const alarmSound = document.getElementById('alarm-sound');
 
-    audioInput.addEventListener('change', function () {
-        const file = this.files[0];
-        if (file) {
-            alarmSound.src = URL.createObjectURL(file);
-            audioLabel.innerText = `✔️ ${file.name}`;
-        }
+    // Actualizar el src del audio cuando cambie la selección
+    toneSelect.addEventListener('change', () => {
+        alarmSound.src = toneSelect.value;
     });
+    // Inicializar con el valor seleccionado
+    alarmSound.src = toneSelect.value;
 
     // ── CLIMA (wttr.in) ──
     async function fetchWeather() {
@@ -683,6 +856,330 @@
         if (!wakeLock && document.visibilityState === 'visible') requestWakeLock();
     });
     requestWakeLock();
+
+    // ── FIREBASE INTEGRATION ──
+    // Firebase config from CREDENCIALES.md
+    const firebaseConfig = {
+        apiKey: "AIzaSyAZ_6YiC9FJTwwkPPMhT7SpdOgyRW5nbsg",
+        authDomain: "juanech-sa.firebaseapp.com",
+        databaseURL: "https://juanech-sa-default-rtdb.firebaseio.com",
+        projectId: "juanech-sa",
+        storageBucket: "juanech-sa.firebasestorage.app",
+        messagingSenderId: "310883397247",
+        appId: "1:310883397247:web:be8090e93bdd43a429194a"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Publicar estado de conexión
+    const statusRef = db.ref('chile-robot/status');
+    const deviceName = navigator.userAgent.includes('Windows') ? 'Windows' :
+                     navigator.userAgent.includes('Mac') ? 'Mac' :
+                     navigator.userAgent.includes('Linux') ? 'Linux' : 'Desktop';
+    const browserName = navigator.userAgent.includes('Chrome') ? 'Chrome' :
+                     navigator.userAgent.includes('Firefox') ? 'Firefox' :
+                     navigator.userAgent.includes('Safari') ? 'Safari' : 'Browser';
+    const initialState = {
+        online: true,
+        device: deviceName + ' - ' + browserName,
+        lastSeen: Date.now()
+    };
+    statusRef.set(initialState);
+    // Cuando se cierra la página, marcar offline
+    statusRef.onDisconnect().set({
+        online: false,
+        device: deviceName + ' - ' + browserName,
+        lastSeen: Date.now()
+    });
+
+    // Escuchar configuración de alarma desde Firebase
+    const alarmRef = db.ref('chile-robot/alarm');
+    alarmRef.on('value', (snapshot) => {
+        const alarm = snapshot.val();
+        if (!alarm || !alarm.time) return;
+
+        // Aplicar hora de alarma al input existente
+        document.getElementById('alarm-time').value = alarm.time;
+
+        // Aplicar modo despertador
+        if (alarm.despertadorMode !== undefined) {
+            despertadorMode = alarm.despertadorMode;
+            document.getElementById('despertador-toggle').classList.toggle('on', despertadorMode);
+            document.getElementById('despertador-panel').classList.toggle('open', despertadorMode);
+        }
+
+        // Aplicar tono
+        if (alarm.tone) {
+            document.getElementById('tone-select').value = alarm.tone;
+            alarmSound.src = alarm.tone;
+        }
+
+        // Aplicar campos de texto
+        document.getElementById('tts-message').value = alarm.ttsMessage || '';
+        document.getElementById('reminders-input').value = alarm.reminders || '';
+        document.getElementById('music-link').value = alarm.spotifyLink || '';
+        document.getElementById('alexa-command').value = alarm.alexaCommand || '';
+
+        // Re-setear la alarma con los nuevos valores
+        targetAlarmTime = alarm.time;
+        const modeText = alarm.despertadorMode ? ' (Despertador)' : '';
+        alarmDisplay.innerText = `Alarma: ${targetAlarmTime}${modeText} — Espacio para editar`;
+    });
+
+    // Escuchar comando de apagar alarma
+    db.ref('chile-robot/alarm/stopAlarm').on('value', (snapshot) => {
+        if (snapshot.val() === true) {
+            stopAlarm();
+            // Resetear el flag
+            db.ref('chile-robot/alarm/stopAlarm').set(false);
+        }
+    });
+
+    // Sistema de vistas
+    function switchView(viewName) {
+        document.querySelectorAll('.view').forEach(v => {
+            v.style.display = 'none';
+            v.classList.remove('active');
+        });
+        const target = document.getElementById('view-' + viewName);
+        if (target) {
+            target.style.display = 'flex';
+            target.classList.add('active');
+        }
+    }
+
+    // Escuchar cambios de vista desde Firebase
+    db.ref('chile-robot/view/current').on('value', (snapshot) => {
+        const view = snapshot.val() || 'clock';
+        switchView(view);
+    });
+
+    // ========== VISTA DE FINANZAS ==========
+    const financeContent = document.getElementById('finance-content');
+    const financeRefreshBtn = document.getElementById('finance-refresh');
+
+    async function loadFinanceData() {
+        financeContent.innerHTML = '<div style="text-align: center; color: #888; padding: 40px;">Cargando datos...</div>';
+
+        try {
+            // 1. Dolar (USD/CLP) - mindicador.cl
+            const dolarResp = await fetch('https://mindicador.cl/api/dolar');
+            const dolarData = await dolarResp.json();
+            const dolarValor = dolarData.serie[0].valor;
+            const dolarFecha = dolarData.serie[0].fecha.substring(0, 10); // YYYY-MM-DD
+
+            // 2. SpaceX (SPCX) - Yahoo Finance via CORS proxy
+            let spcxPrice = 'Datos no disponibles';
+            let spcxChange = '';
+            let spcxChangeClass = '';
+            let spcxTimestamp = '';
+            try {
+                // Usar corsproxy.io como proxy CORS
+                const spcxResp = await fetch('https://corsproxy.io/?url=https://query1.finance.yahoo.com/v8/finance/chart/SPCX?interval=1d&range=1d');
+                if (!spcxResp.ok) throw new Error('Yahoo Finance request failed');
+                const spcxData = await spcxResp.json();
+                if (spcxData.chart && spcxData.chart.result && spcxData.chart.result.length > 0) {
+                    const result = spcxData.chart.result[0];
+                    const meta = result.meta;
+                    const precioActual = meta.regularMarketPrice;
+                    const cierreAnterior = meta.previousClose;
+                    const cambioPorcentual = ((precioActual - cierreAnterior) / cierreAnterior) * 100;
+                    spcxPrice = precioActual.toFixed(2);
+                    spcxChange = cambioPorcentual.toFixed(2) + '%';
+                    spcxChangeClass = cambioPorcentual >= 0 ? 'positive' : 'negative';
+                    spcxTimestamp = new Date(meta.regularMarketTime * 1000).toLocaleString('es-CL');
+                }
+            } catch (e) {
+                console.warn('No se pudo obtener datos de SPCX:', e);
+                // Mantener valores por defecto
+            }
+
+            // 3. Fondo BICE - Botón que abre enlace
+            const biceUrl = 'https://mercadosenlinea.biceinversiones.cl/www/fondosmutuos.html';
+
+            // Renderizar tarjetas
+            financeContent.innerHTML = `
+                <div class="finance-card">
+                    <div class="label">USD / CLP</div>
+                    <div class="value">$${Number(dolarValor).toLocaleString('es-CL')}</div>
+                    <div class="timestamp">Actualizado: ${dolarFecha}</div>
+                </div>
+                <div class="finance-card">
+                    <div class="label">SPCX <span style="font-size:0.8rem; opacity:0.7;">NASDAQ</span></div>
+                    <div class="value">$${spcxPrice}</div>
+                    <div class="change ${spcxChangeClass}">${spcxChange} <span>${spcxChangeClass === 'positive' ? '↑' : '↓'}</span></div>
+                    <div class="timestamp">Actualizado: ${spcxTimestamp || 'Datos no disponibles'}</div>
+                </div>
+                <div class="finance-card">
+                    <div class="label">BICE Acciones Mercados Emergentes</div>
+                    <div style="margin: 12px 0;">
+                        <a href="${biceUrl}" target="_blank" style="color: #fff; text-decoration: none; border: 1px solid #444; padding: 8px 16px; border-radius: 6px; display: inline-block;">Ver en BICE</a>
+                    </div>
+                    <div class="timestamp">Hacer clic en el botón para ver el fondo</div>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error cargando datos financieros:', error);
+            financeContent.innerHTML = `<div style="text-align: center; color: #ff3b30; padding: 40px;">Error al cargar datos financieros. Inténtalo de nuevo.</div>`;
+        }
+    }
+
+    // Cargar al iniciar la vista y cada 5 minutos
+    financeRefreshBtn.addEventListener('click', loadFinanceData);
+    // También cargar cuando se activa la vista de finanzas
+    const viewFinance = document.getElementById('view-finance');
+    if (viewFinance) {
+        // Observer para detectar cuando la vista se hace visible
+        const financeObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'class' &&
+                    mutation.target.classList.contains('active')) {
+                    loadFinanceData();
+                }
+            });
+        });
+        financeObserver.observe(viewFinance, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    // Actualización automática cada 5 minutos
+    setInterval(loadFinanceData, 5 * 60 * 1000);
+
+    // ========== VISTA DE CALENDARIO ==========
+    const calendarContent = document.getElementById('calendar-content');
+    const calendarRefreshBtn = document.getElementById('calendar-refresh');
+
+    // Configuración de Google Calendar API desde CREDENCIALES.md
+    const CALENDAR_API_KEY = 'AIzaSyBunB8Ugcu1GGflPEOJg9NkMlKP6w1qKs4';
+    const CALENDAR_ID = encodeURIComponent('juaneo2006@gmail.com');
+
+    async function loadCalendarEvents() {
+        calendarContent.innerHTML = '<div style="text-align: center; color: #888; padding: 40px;">Cargando eventos...</div>';
+
+        try {
+            // Calcular lunes de esta semana
+            const now = new Date();
+            const dayOfWeek = now.getDay(); // 0=domingo
+            const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            const monday = new Date(now);
+            monday.setDate(now.getDate() + mondayOffset);
+            monday.setHours(0, 0, 0, 0);
+
+            // Calcular domingo de la semana siguiente (14 días desde el lunes)
+            const endSunday = new Date(monday);
+            endSunday.setDate(monday.getDate() + 13);
+            endSunday.setHours(23, 59, 59, 999);
+
+            const timeMin = monday.toISOString();
+            const timeMax = endSunday.toISOString();
+
+            const url = `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_ID}/events?key=${CALENDAR_API_KEY}&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&timeZone=America/Santiago`;
+
+            const resp = await fetch(url);
+            if (!resp.ok) {
+                if (resp.status === 404) {
+                    calendarContent.innerHTML = `
+                        <div style="text-align: center; color: #ff3b30; padding: 40px;">
+                            Calendario no accesible. Verifica que tu Google Calendar sea público.<br>
+                            <small>Para hacerlo público: Configuración de Google Calendar → Calendario → Compartir públicamente</small>
+                        </div>
+                    `;
+                    return;
+                }
+                throw new Error(`Calendar API error: ${resp.status}`);
+            }
+
+            const data = await resp.json();
+            const events = data.items || [];
+
+            // Crear mapa de eventos por fecha
+            const eventMap = {};
+            events.forEach(event => {
+                const dateStr = event.start.dateTime
+                    ? event.start.dateTime.split('T')[0]
+                    : event.start.date; // evento de todo el día
+                if (!eventMap[dateStr]) eventMap[dateStr] = [];
+                eventMap[dateStr].push(event);
+            });
+
+            // Generar 14 días a partir del lunes
+            const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            const daysHtml = [];
+
+            for (let i = 0; i < 14; i++) {
+                const date = new Date(monday);
+                date.setDate(monday.getDate() + i);
+                const dateStr = date.toISOString().split('T')[0];
+                const dayNum = date.getDate();
+                const isToday = dateStr === todayStr;
+                const dayEvents = eventMap[dateStr] || [];
+
+                let eventsHtml = '';
+                if (dayEvents.length === 0) {
+                    eventsHtml = '<div class="calendar-day-empty">—</div>';
+                } else {
+                    dayEvents.forEach(event => {
+                        let timeStr = '';
+                        let title = event.summary || 'Sin título';
+                        if (event.start.dateTime) {
+                            const dateTime = new Date(event.start.dateTime);
+                            const hours = String(dateTime.getHours()).padStart(2, '0');
+                            const minutes = String(dateTime.getMinutes()).padStart(2, '0');
+                            timeStr = `${hours}:${minutes}`;
+                        }
+                        eventsHtml += `
+                            <div class="calendar-event">
+                                <span class="calendar-event-time">${timeStr}</span>
+                                <span class="calendar-event-title">${title}</span>
+                            </div>
+                        `;
+                    });
+                }
+
+                daysHtml.push(`
+                    <div class="calendar-day ${isToday ? 'today' : ''}">
+                        <div class="calendar-day-number">${dayNum}</div>
+                        ${eventsHtml}
+                    </div>
+                `);
+            }
+
+            // Días de la semana encabezados
+            const dayNames = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
+            const headerHtml = dayNames.map(name => `<div style="font-weight:600; color:#888; text-align:center;">${name}</div>`).join('');
+
+            calendarContent.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 12px;">
+                    ${headerHtml}
+                </div>
+                <div class="calendar-grid">
+                    ${daysHtml.join('')}
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error cargando calendario:', error);
+            calendarContent.innerHTML = `<div style="text-align: center; color: #ff3b30; padding: 40px;">Error al cargar el calendario. Inténtalo de nuevo.</div>`;
+        }
+    }
+
+    // Cargar al iniciar la vista y cada 15 minutos
+    calendarRefreshBtn.addEventListener('click', loadCalendarEvents);
+    const viewCalendar = document.getElementById('view-calendar');
+    if (viewCalendar) {
+        const calendarObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'class' &&
+                    mutation.target.classList.contains('active')) {
+                    loadCalendarEvents();
+                }
+            });
+        });
+        calendarObserver.observe(viewCalendar, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    // Actualización automática cada 15 minutos
+    setInterval(loadCalendarEvents, 15 * 60 * 1000);
 </script>
 </body>
 </html>
