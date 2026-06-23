@@ -355,10 +355,11 @@
         }
         .refresh-btn:hover { color: #fff; }
 
-        /* Calendario */
+        /* Calendario – adjustments for 1920x1080 full‑screen */
         .calendar-container {
-            width: 90%;
-            max-width: 600px;
+            width: 90vmin;               /* scales with the smaller viewport dimension */
+            max-width: 960px;            /* ~half of 1920 width, keeps a nice margin */
+            margin: 0 auto;
         }
         .calendar-header {
             display: flex;
@@ -383,24 +384,26 @@
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
+            grid-template-rows: repeat(2, 1fr);
+            gap: 10px;
         }
         .calendar-day {
             background: #000;
             border: 1px solid #222;
             border-radius: 8px;
             padding: 12px;
-            min-height: 80px;
+            min-height: 100px;        /* fixed height for equal cells */
             display: flex;
             flex-direction: column;
+            justify-content: flex-start;
         }
         .calendar-day.today {
             border: 2px solid #ff3b30;
         }
         .calendar-day-number {
-            font-size: 1.5rem;
+            font-size: 1.6rem;
             font-weight: 300;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         .calendar-day.today .calendar-day-number {
             color: #ff3b30;
@@ -429,6 +432,30 @@
             font-size: 0.75rem;
             align-self: center;
         }
+
+        /* ── FOCUS MODE (timer & YouTube audio) ── */
+        #focus-timer {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2.5rem;
+            font-weight: 300;
+            color: #fff;
+            opacity: 0;
+            transition: opacity .3s;
+        }
+        #focus-timer.visible { opacity: 1; }
+
+        /* YouTube player container – hidden */
+        #yt-player-container {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
@@ -448,6 +475,8 @@
             <div class="center-axis"></div>
         </div>
     </div>
+    <!-- Focus‑mode timer (shown when active) -->
+    <div id="focus-timer">00:00</div>
 </div>
 
 <div id="view-finance" class="view">
@@ -556,6 +585,9 @@
         <div class="reminder-text" id="screen-reminders-text"></div>
     </div>
 </div>
+
+<!-- YouTube IFrame API placeholder -->
+<div id="yt-player-container"><div id="yt-player"></div></div>
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -871,8 +903,10 @@
         appId: "1:310883397247:web:be8090e93bdd43a429194a"
     };
 
-    // Inicializar Firebase
-    firebase.initializeApp(firebaseConfig);
+    // Inicializar Firebase (solo si no hay otra app)
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
     const db = firebase.database();
 
     // Publicar estado de conexión
@@ -1177,6 +1211,104 @@
 
     // Actualización automática cada 15 minutos
     setInterval(loadCalendarEvents, 15 * 60 * 1000);
+
+    // ========== FOCUS MODE (timer + YouTube audio) ==========
+    const focusTimerEl = document.getElementById('focus-timer');
+    let focusStartTime = null;
+    let focusInterval = null;
+    let ytPlayer = null;
+    const ytApiLoadedPromise = new Promise((resolve) => {
+        window.onYouTubeIframeAPIReady = () => {
+            resolve();
+        };
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    });
+
+    // Función para crear/reproducir el video de YouTube (solo audio)
+    async function loadYouTubeVideo() {
+        await ytApiLoadedPromise;
+        ytPlayer = new YT.Player('yt-player', {
+            height: '0',
+            width: '0',
+            videoId: 'cf4_X_II_Xc',   // ID extraído de la URL
+            playerVars: {
+                autoplay: 1,
+                controls: 0,
+                showinfo: 0,
+                modestbranding: 1,
+                iv_load_policy: 3,
+                loop: 1,
+                playlist: 'cf4_X_II_Xc' // necesario para loop
+            },
+            events: {
+                onReady: (event) => {
+                    // Volumen inicial desde Firebase (se actualizará después)
+                    if (focusVolume !== null) {
+                        event.target.setVolume(focusVolume);
+                    }
+                }
+            }
+        });
+    }
+
+    // Estado de volumen (0‑100) recibido desde remote
+    let focusVolume = 50; // valor por defecto
+
+    // Escuchar cambios de focusMode en Firebase
+    const focusModeRef = db.ref('chile-robot/focusMode');
+    focusModeRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (!data) {
+            // No hay datos -> considerar desactivado
+            deactivateFocusMode();
+            return;
+        }
+        if (data.active === true) {
+            activateFocusMode(data.volume !== undefined ? data.volume : focusVolume);
+        } else {
+            deactivateFocusMode();
+        }
+    });
+
+    function activateFocusMode(volume) {
+        focusVolume = volume;
+        focusTimerEl.classList.add('visible');
+        focusStartTime = Date.now();
+        // Iniciar conteo
+        focusInterval = setInterval(updateFocusTimer, 250);
+        // Cargar/video de YouTube si aún no está creado
+        if (!ytPlayer) {
+            loadYouTubeVideo();
+        } else {
+            // Sólo actualizar volumen
+            ytPlayer.setVolume(volume);
+        }
+    }
+
+    function deactivateFocusMode() {
+        focusTimerEl.classList.remove('visible');
+        if (focusInterval) {
+            clearInterval(focusInterval);
+            focusInterval = null;
+        }
+        focusStartTime = null;
+        if (ytPlayer) {
+            ytPlayer.pauseVideo();
+        }
+    }
+
+    function updateFocusTimer() {
+        if (!focusStartTime) return;
+        const elapsed = Date.now() - focusStartTime;
+        const totalSec = Math.floor(elapsed / 1000);
+        const hours = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+        const minutes = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+        const seconds = String(totalSec % 60).padStart(2, '0');
+        focusTimerEl.textContent = `${hours}:${minutes}:${seconds}`;
+    }
 </script>
 </body>
 </html>
