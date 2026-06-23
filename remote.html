@@ -370,6 +370,11 @@
         </div>
     </div>
 
+    <!-- Botón para abrir configuración -->
+    <div class="form-group">
+        <button id="configurar-btn" class="action-btn">Configurar Alarma</button>
+    </div>
+
     <!-- Panel expandible -->
     <div class="despertador-panel" id="despertador-panel" style="display: none;">
         <hr class="divider" style="border: none; border-top: 1px solid #222; margin: 15px 0;">
@@ -422,7 +427,7 @@
 
     <!-- Lista de alarmas -->
     <div id="alarm-list-container">
-        <h3>Alarmactivas</h3>
+        <h3>Alarmas activas</h3>
         <div id="alarm-list">
             <!-- Las alarmas se inyectarán aquí -->
         </div>
@@ -498,6 +503,7 @@
 
     // Estado local
     let selectedAlarmKey = null; // clave Firebase de la alarma seleccionada
+let despertadorMode = false; // estado del modo despertador
 
     // Actualizar estado de conexión
     const statusRef = db.ref('chile-robot/status');
@@ -512,11 +518,10 @@
         }
     });
 
-    // Toggle modo despertador
+    // Toggle modo despertador (solo actualiza estado)
     despertadorToggle.addEventListener('click', () => {
-        const activo = !despertadorToggle.classList.contains('on');
-        despertadorToggle.classList.toggle('on', activo);
-        despertadorPanel.style.display = activo ? 'block' : 'none';
+        despertadorMode = !despertadorMode;
+        despertadorToggle.classList.toggle('on', despertadorMode);
     });
 
     // Preview tone
@@ -650,6 +655,16 @@
         }
     });
 
+    // Botón para mostrar/ocultar panel de configuración
+    const configurarBtn = document.getElementById('configurar-btn');
+    configurarBtn.addEventListener('click', () => {
+        const isShow = despertadorPanel.style.display === 'block';
+        despertadorPanel.style.display = isShow ? 'none' : 'block';
+        if (!isShow) {
+            alarmTimeInput.focus();
+        }
+    });
+
     // Inicializar: establecer modo despertador según estado inicial (opcional)
     // y cargar valores actuales desde Firebase si existen
     const alarmRef = db.ref('chile-robot/alarm');
@@ -661,7 +676,7 @@
             if (data.despertadorMode !== undefined) {
                 const activo = data.despertadorMode;
                 despertadorToggle.classList.toggle('on', activo);
-                despertadorPanel.style.display = activo ? 'block' : 'none';
+                despertadorMode = activo;
             }
             if (data.tone) toneSelect.value = data.tone;
             if (data.ttsMessage) ttsMessageInput.value = data.ttsMessage;
